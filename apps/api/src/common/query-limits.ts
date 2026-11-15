@@ -1,0 +1,3 @@
+export const MAX_LIST_ROWS = 1000;
+export const MAX_REPORT_LOW_STOCK_ROWS = 100;
+export const REPORT_INVENTORY_BATCH_SIZE = 500;

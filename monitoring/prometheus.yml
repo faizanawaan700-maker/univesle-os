@@ -1,0 +1,28 @@
+# Prometheus scrape configuration for UBOS.
+#
+# The API exposes /health/ready as an HTTP endpoint rather than a Prometheus
+# metrics endpoint (no metrics library is installed). Prometheus is therefore used
+# for black-box uptime and latency probing, which is enough to alert on "the API
+# or its database is down". Adding rich metrics later means adding the metrics
+# endpoint, not changing this ownership model.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: ubos-api-health
+    metrics_path: /health/ready
+    static_configs:
+      - targets: ["api:4000"]
+
+  - job_name: ubos-web
+    metrics_path: /
+    static_configs:
+      - targets: ["web:3000"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

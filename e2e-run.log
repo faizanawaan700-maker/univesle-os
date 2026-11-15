@@ -1,0 +1,187 @@
+﻿node.exe : [WebServer]  ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([WebServer]  ⚠ ...not be correct.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[WebServer]  We detected multiple lockfiles and selected the directory of C:\Users\admin\OneDrive\Desktop\Univesle 
+OS\package-lock.json as the root directory.
+[WebServer]  To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of 
+the lockfiles if it's not needed.
+[WebServer]    See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+[WebServer]  Detected additional lockfiles: 
+[WebServer]    * C:\Users\admin\OneDrive\Desktop\Univesle OS\apps\web\package-lock.json
+[WebServer] 
+
+Running 7 tests using 1 worker
+
+  ok 1 [Chromium] › e2e\phase2-workflows.spec.ts:32:1 › registers a workspace and lands on the business dashboard (1.8s)
+  x  2 [Chromium] › e2e\phase2-workflows.spec.ts:38:1 › creates a product and sees it in the catalog table (3.6s)
+  x  3 [Chromium] › e2e\phase2-workflows.spec.ts:62:1 › creates a customer and edits it, clearing the email (1.0m)
+  x  4 [Chromium] › e2e\phase2-workflows.spec.ts:74:1 › creates a multi-line sale and shows reconciled invoice details (1.0m)
+  x  5 [Chromium] › e2e\phase2-workflows.spec.ts:105:1 › records a payment with a reference and shows it in invoice history (1.0m)
+  ok 6 [Chromium] › e2e\phase2-workflows.spec.ts:137:1 › creates a chart of accounts entry and a branch (2.4s)
+  x  7 [Chromium] › e2e\phase2-workflows.spec.ts:153:1 › shows organization-scoped audit history after activity (1.0m)
+
+
+  1) [Chromium] › e2e\phase2-workflows.spec.ts:38:1 › creates a product and sees it in the catalog table 
+
+    Error: PRODUCTS TAB DID NOT RENDER. Body:
+    Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).
+    ERRORS:
+    Failed to load resource: the server responded with a status of 401 (Unauthorized)
+    ---
+    PAGEERROR: a.find is not a function
+    TypeError: a.find is not a function
+        at x (http://localhost:3000/_next/static/chunks/app/page-b4acbf4acfa4a7e8.js:1:10799)
+        at l9 (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:51124)
+        at o_ (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:70984)
+        at oq (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:82014)
+        at ik (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:114676)
+        at http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:114521
+        at ib (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:114529)
+        at iu (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:111612)
+        at iG (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:133049)
+        at iW (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:131260)
+        at x (http://localhost:3000/_next/static/chunks/app/page-b4acbf4acfa4a7e8.js:1:10799)
+        at l9 (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:51124)
+        at o_ (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:70984)
+        at oq (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:82014)
+        at ik (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:114676)
+        at http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:114521
+        at ib (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:114529)
+        at iu (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:111612)
+        at iG (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:133049)
+        at iW (http://localhost:3000/_next/static/chunks/4bd1b696-c023c6e3521b1417.js:1:131260)
+        at C:\Users\admin\OneDrive\Desktop\Univesle OS\apps\web\e2e\phase2-workflows.spec.ts:50:11
+
+    Error Context: test-results\phase2-workflows-creates-a-17706-ees-it-in-the-catalog-table-Chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\phase2-workflows-creates-a-17706-ees-it-in-the-catalog-table-Chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\phase2-workflows-creates-a-17706-ees-it-in-the-catalog-table-Chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [Chromium] › e2e\phase2-workflows.spec.ts:62:1 › creates a customer and edits it, clearing the email 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.fill: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByLabel('Customer name')
+
+
+      65 |
+      66 |   const customerName = `E2E Customer ${Date.now()}`;
+    > 67 |   await page.getByLabel("Customer name").fill(customerName);
+         |                                          ^
+      68 |   await page.getByLabel("Email").fill("customer@example.com");
+      69 |   await page.getByRole("button", { name: /Create customer/i }).click();
+      70 |   await expect(page.getByRole("cell", { name: customerName })).toBeVisible({ timeout: 15_000 });
+        at C:\Users\admin\OneDrive\Desktop\Univesle OS\apps\web\e2e\phase2-workflows.spec.ts:67:42
+
+    Error Context: test-results\phase2-workflows-creates-a-f81aa-edits-it-clearing-the-email-Chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\phase2-workflows-creates-a-f81aa-edits-it-clearing-the-email-Chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\phase2-workflows-creates-a-f81aa-edits-it-clearing-the-email-Chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [Chromium] › e2e\phase2-workflows.spec.ts:74:1 › creates a multi-line sale and shows reconciled invoice details 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.fill: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByLabel('Product name')
+
+
+      77 |
+      78 |   const productName = `E2E Sale Product ${Date.now()}`;
+    > 79 |   await page.getByLabel("Product name").fill(productName);
+         |                                         ^
+      80 |   await page.getByLabel("Selling price").fill("10.00");
+      81 |   await page.getByLabel("Unit cost").fill("4.00");
+      82 |   await page.getByRole("button", { name: /Create product/i }).click();
+        at C:\Users\admin\OneDrive\Desktop\Univesle OS\apps\web\e2e\phase2-workflows.spec.ts:79:41
+
+    Error Context: test-results\phase2-workflows-creates-a-d896f--reconciled-invoice-details-Chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\phase2-workflows-creates-a-d896f--reconciled-invoice-details-Chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\phase2-workflows-creates-a-d896f--reconciled-invoice-details-Chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [Chromium] › e2e\phase2-workflows.spec.ts:105:1 › records a payment with a reference and shows it in invoice history 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.selectOption: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByLabel('Product')
+
+
+      115 |
+      116 |   await openTab(page, "Inventory");
+    > 117 |   await page.getByLabel("Product").selectOption({ label: productName });
+          |                                    ^
+      118 |   await page.getByLabel("Change in units").fill("10");
+      119 |   await page.getByRole("button", { name: /Adjust stock/i }).click();
+      120 |   await expect(page.getByRole("cell", { name: "10" })).toBeVisible({ timeout: 15_000 });
+        at C:\Users\admin\OneDrive\Desktop\Univesle OS\apps\web\e2e\phase2-workflows.spec.ts:117:36
+
+    Error Context: test-results\phase2-workflows-records-a-51e60-shows-it-in-invoice-history-Chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\phase2-workflows-records-a-51e60-shows-it-in-invoice-history-Chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\phase2-workflows-records-a-51e60-shows-it-in-invoice-history-Chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [Chromium] › e2e\phase2-workflows.spec.ts:153:1 › shows organization-scoped audit history after activity 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.fill: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByLabel('Product name')
+
+
+      156 |
+      157 |   const productName = `E2E Audit Product ${Date.now()}`;
+    > 158 |   await page.getByLabel("Product name").fill(productName);
+          |                                         ^
+      159 |   await page.getByLabel("Selling price").fill("1.00");
+      160 |   await page.getByLabel("Unit cost").fill("0.50");
+      161 |   await page.getByRole("button", { name: /Create product/i }).click();
+        at C:\Users\admin\OneDrive\Desktop\Univesle OS\apps\web\e2e\phase2-workflows.spec.ts:158:41
+
+    Error Context: test-results\phase2-workflows-shows-org-92a5b-udit-history-after-activity-Chromium\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\phase2-workflows-shows-org-92a5b-udit-history-after-activity-Chromium\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\phase2-workflows-shows-org-92a5b-udit-history-after-activity-Chromium\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5 failed
+    [Chromium] › e2e\phase2-workflows.spec.ts:38:1 › creates a product and sees it in the catalog table 
+    [Chromium] › e2e\phase2-workflows.spec.ts:62:1 › creates a customer and edits it, clearing the email 
+    [Chromium] › e2e\phase2-workflows.spec.ts:74:1 › creates a multi-line sale and shows reconciled invoice details 
+    [Chromium] › e2e\phase2-workflows.spec.ts:105:1 › records a payment with a reference and shows it in invoice history 
+    [Chromium] › e2e\phase2-workflows.spec.ts:153:1 › shows organization-scoped audit history after activity 
+  2 passed (4.4m)

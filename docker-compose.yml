@@ -1,0 +1,114 @@
+# UBOS local/staging stack: PostgreSQL, migrations, API, web and monitoring.
+#
+# Usage:
+#   docker compose up -d db
+#   docker compose run --rm migrate
+#   docker compose up -d api web
+#   docker compose --profile monitoring up -d prometheus grafana
+#
+# Secrets come from the environment or a `.env` file that is never committed.
+# Nothing here resets or drops an existing database.
+name: ubos
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-ubos_development}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+    volumes:
+      - ubos-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ubos_development}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  # One-shot migration runner. Forward-only: `migrate deploy` never resets data.
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+    working_dir: /app/packages/database
+    command: ["npx", "prisma", "migrate", "deploy", "--schema", "prisma/schema.prisma"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    profiles: ["ops"]
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN}
+      API_HOST: 0.0.0.0
+      API_PORT: 4000
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_API_SAME_ORIGIN: ${NEXT_PUBLIC_API_SAME_ORIGIN:-}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: ["monitoring"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ubos-prometheus:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: ["monitoring"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      - ubos-grafana:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  ubos-pgdata:
+  ubos-prometheus:
+  ubos-grafana:

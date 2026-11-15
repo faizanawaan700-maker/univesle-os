@@ -1,0 +1,17 @@
+{
+  "name": "universal-business-os",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev:api": "npm run build --prefix packages/database && npm run start:dev --prefix apps/api",
+    "dev:web": "npm run dev --prefix apps/web",
+    "build": "npm run build --prefix packages/database && npm run build --prefix apps/api && npm run build --prefix apps/web",
+    "test": "npm run build --prefix packages/database && npm test --prefix apps/api"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0"
+  },
+  "dependencies": {
+    "next": "^16.5.0-canary.45"
+  }
+}

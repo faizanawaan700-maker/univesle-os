@@ -1,0 +1,26 @@
+{
+  "name": "@ubos/web",
+  "version": "0.1.0",
+  "private": true,
+  "overrides": {
+    "postcss": "8.5.23"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test:e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File e2e/run-e2e.ps1"
+  },
+  "dependencies": {
+    "next": "^15.5.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "typescript": "5.9.3"
+  }
+}

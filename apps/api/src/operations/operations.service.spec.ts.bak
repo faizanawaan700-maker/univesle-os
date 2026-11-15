@@ -1,0 +1,236 @@
+import { Decimal } from "@prisma/client/runtime/client";
+import { NotFoundException } from "@nestjs/common";
+import { MAX_LIST_ROWS } from "../common/query-limits";
+import { database } from "@ubos/database";
+import type { OrganizationContext } from "../common/http-context";
+import { OperationsService } from "./operations.service";
+
+jest.mock("@ubos/database", () => ({
+  Prisma: {
+    Decimal: jest.requireActual("@prisma/client/runtime/client").Decimal,
+  },
+  database: {
+    payment: {
+      findMany: jest.fn(),
+    },
+    product: {
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
+    productCategory: {
+      findFirst: jest.fn(),
+    },
+    $transaction: jest.fn((operation: unknown) =>
+      (operation as (tx: unknown) => unknown)({
+        product: {
+          findFirst: mockedDatabase.product.findFirst,
+          update: mockedDatabase.product.update,
+        },
+        productCategory: {
+          findFirst: mockedDatabase.productCategory.findFirst,
+        },
+        auditLog: {
+          create: jest.fn(),
+        },
+      })),
+  },
+}));
+
+const mockedDatabase = database as jest.Mocked<typeof database>;
+const mockPaymentFindMany = mockedDatabase.payment
+  .findMany as jest.Mock;
+const mockProductFindFirst = mockedDatabase.product
+  .findFirst as jest.Mock;
+const mockProductUpdate = mockedDatabase.product
+  .update as jest.Mock;
+const mockProductCategoryFindFirst = mockedDatabase.productCategory
+  .findFirst as jest.Mock;
+const mockCustomerFindFirst = jest.fn();
+const mockCustomerUpdate = jest.fn();
+const mockSupplierFindFirst = jest.fn();
+const mockSupplierUpdate = jest.fn();
+
+describe("OperationsService.listPayments", () => {
+  const service = new OperationsService();
+  const organization: OrganizationContext = {
+    id: "org-1",
+    name: "Test Organization",
+    memberId: "member-1",
+    roleKey: "owner",
+    permissions: ["payments.manage"],
+  };
+
+  const expectedPayment = {
+    id: "payment-1",
+    organizationId: "org-1",
+    saleId: "sale-1",
+    purchaseInvoiceId: null,
+    amount: new Decimal("125.00"),
+    method: "bank_transfer",
+    reference: "REF-1",
+    paidAt: new Date("2026-01-02T10:00:00Z"),
+    sale: { id: "sale-1", invoiceNumber: "INV-0001", total: new Decimal("500.00") },
+    purchaseInvoice: null,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("scopes every query to the authenticated organization", async () => {
+    mockPaymentFindMany.mockResolvedValue([]);
+    await service.listPayments(organization);
+
+    expect(mockPaymentFindMany).toHaveBeenCalledWith({
+      where: { organizationId: "org-1" },
+      orderBy: { paidAt: "desc" },
+      take: MAX_LIST_ROWS,
+      include: {
+        sale: { select: { id: true, invoiceNumber: true, total: true } },
+        purchaseInvoice: {
+          select: { id: true, invoiceNumber: true, total: true },
+        },
+      },
+    });
+  });
+
+  it("orders payments by paidAt descending", async () => {
+    mockPaymentFindMany.mockResolvedValue([expectedPayment]);
+    await service.listPayments(organization);
+
+    const call = mockPaymentFindMany.mock.calls[0][0];
+    expect(call.orderBy).toEqual({ paidAt: "desc" });
+  });
+
+  it("applies the existing list row limit", async () => {
+    mockPaymentFindMany.mockResolvedValue([]);
+    await service.listPayments(organization);
+
+    const call = mockPaymentFindMany.mock.calls[0][0];
+    expect(call.take).toBe(MAX_LIST_ROWS);
+    expect(MAX_LIST_ROWS).toBe(1000);
+  });
+
+  it("includes sale and purchase invoice references supported by the schema", async () => {
+    mockPaymentFindMany.mockResolvedValue([expectedPayment]);
+    await service.listPayments(organization);
+
+    const call = mockPaymentFindMany.mock.calls[0][0];
+    expect(call.include).toEqual({
+      sale: { select: { id: true, invoiceNumber: true, total: true } },
+      purchaseInvoice: {
+        select: { id: true, invoiceNumber: true, total: true },
+      },
+    });
+  });
+
+  it("returns the payments found for the organization", async () => {
+    mockPaymentFindMany.mockResolvedValue([expectedPayment]);
+    const result = await service.listPayments(organization);
+
+    expect(result).toEqual([expectedPayment]);
+  });
+});
+
+describe("OperationsService.updateProduct", () => {
+  const service = new OperationsService();
+  const organization: OrganizationContext = {
+    id: "org-1",
+    name: "Test Organization",
+    memberId: "member-1",
+    roleKey: "owner",
+    permissions: ["catalog.manage"],
+  };
+
+  const productId = "product-1";
+  const categoryId = "category-1";
+
+  const expectedProduct = {
+    id: productId,
+    organizationId: "org-1",
+    categoryId,
+    name: "Updated product",
+    sku: "SKU-001",
+    barcode: null,
+    unitPrice: "12.50",
+    costPrice: "8.00",
+    lowStockAt: 10,
+    isActive: true,
+    category: { id: categoryId, name: "Category" },
+    inventory: { quantity: 5 },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProductFindFirst.mockResolvedValue({ id: productId });
+    mockProductUpdate.mockResolvedValue(expectedProduct);
+  });
+
+  it("looks up the product scoped to the authenticated organization", async () => {
+    await service.updateProduct(
+      { id: productId, name: "Name" },
+      organization,
+      "actor-1",
+    );
+
+    expect(mockProductFindFirst).toHaveBeenCalledWith({
+      where: { id: productId, organizationId: "org-1" },
+      select: { id: true },
+    });
+  });
+
+  it("throws NotFoundException when the product belongs to another organization", async () => {
+    mockProductFindFirst.mockResolvedValue(null);
+    await expect(
+      service.updateProduct({ id: productId }, organization, "actor-1"),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it("validates category ownership when categoryId is changed", async () => {
+    mockProductCategoryFindFirst.mockResolvedValue(null);
+    await expect(
+      service.updateProduct({ id: productId, categoryId }, organization, "actor-1"),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(mockProductCategoryFindFirst).toHaveBeenCalledWith({
+      where: { id: categoryId, organizationId: "org-1" },
+      select: { id: true },
+    });
+  });
+
+  it("accepts clearing categoryId", async () => {
+    mockProductCategoryFindFirst.mockResolvedValue({ id: categoryId });
+    await service.updateProduct(
+      { id: productId, categoryId: "" },
+      organization,
+      "actor-1",
+    );
+
+    const updateCall = mockProductUpdate.mock.calls[0][0];
+    expect(updateCall.data.categoryId).toBeNull();
+  });
+
+  it("only updates provided fields and does not touch inventory", async () => {
+    await service.updateProduct(
+      { id: productId, name: "Name" },
+      organization,
+      "actor-1",
+    );
+
+    const updateCall = mockProductUpdate.mock.calls[0][0];
+    expect(updateCall.where).toEqual({ id: productId });
+    expect(updateCall.data).toEqual({ name: "Name" });
+    expect(updateCall.data.inventory).toBeUndefined();
+    expect(updateCall.select).toBeDefined();
+  });
+
+  it("returns the updated product", async () => {
+    const result = await service.updateProduct(
+      { id: productId, name: "Name" },
+      organization,
+      "actor-1",
+    );
+    expect(result).toEqual(expectedProduct);
+  });
+});
+

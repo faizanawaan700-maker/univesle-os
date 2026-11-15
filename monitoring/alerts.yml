@@ -1,0 +1,54 @@
+# UBOS alert rules.
+#
+# Thresholds are written against the measured local baseline recorded in
+# docs/OPERATIONS_RUNBOOK.md (p95 438 ms at 20 concurrent users). They are starting
+# values to review once real production traffic exists.
+groups:
+  - name: ubos-availability
+    rules:
+      - alert: UbosApiDown
+        expr: up{job="ubos-api-health"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "UBOS API is not responding"
+          description: "The readiness endpoint has failed for 2 minutes. The API process or its database is down. Follow the rollback section of the operations runbook."
+
+      - alert: UbosApiNotReady
+        expr: probe_success{job="ubos-api-health"} == 0 and up{job="ubos-api-health"} == 1
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "UBOS API is up but reports not ready"
+          description: "The API answers but /health/ready returns 503, which means the database is unreachable. Remove the instance from the load balancer and check PostgreSQL."
+
+      - alert: UbosWebDown
+        expr: up{job="ubos-web"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "UBOS web client is not responding"
+          description: "The Next.js server has failed for 2 minutes."
+
+  - name: ubos-latency
+    rules:
+      - alert: UbosApiSlow
+        expr: probe_duration_seconds{job="ubos-api-health"} > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "UBOS API readiness latency is high"
+          description: "Readiness probes take longer than 2 seconds for 10 minutes, which usually indicates database load or a connection-pool problem."
+
+      - alert: UbosErrorRateHigh
+        expr: rate(probe_http_status_code{job="ubos-web",status_code=~"5.."}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "UBOS web is returning server errors"
+          description: "The web client returned 5xx responses in the last 5 minutes. Check the web container logs (structured JSON) for the request id."

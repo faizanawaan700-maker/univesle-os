@@ -1,0 +1,40 @@
+# UBOS API image.
+# Multi-stage: build the database package + API, then ship only runtime files.
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+
+# The repository is a non-workspace npm monorepo: each package installs separately.
+COPY tsconfig.base.json ./
+COPY packages/database ./packages/database
+COPY apps/api ./apps/api
+COPY apps/web/package.json ./apps/web/package.json
+
+RUN npm install --prefix packages/database \
+ && npm run build --prefix packages/database \
+ && npm install --prefix apps/api --install-links \
+ && npm run build --prefix apps/api
+
+FROM node:22-bookworm-slim AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Runtime dependencies only.
+COPY --from=build /app/packages/database/dist ./packages/database/dist
+COPY --from=build /app/packages/database/prisma ./packages/database/prisma
+COPY --from=build /app/packages/database/package.json ./packages/database/package.json
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=build /app/apps/api/package.json ./apps/api/package.json
+
+# Run as a non-root user.
+RUN useradd --create-home --uid 10001 ubos && chown -R ubos:ubos /app
+USER ubos
+
+EXPOSE 4000
+# Uses the application's own readiness endpoint, so an unhealthy database fails the
+# container health check instead of reporting healthy.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.API_PORT||4000)+'/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+WORKDIR /app/apps/api
+CMD ["node", "dist/main.js"]

@@ -1,0 +1,643 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String               @id @default(cuid())
+  email        String               @unique @db.VarChar(320)
+  name         String               @db.VarChar(120)
+  passwordHash String               @db.VarChar(255)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  sessions     Session[]
+  memberships  OrganizationMember[]
+  auditLogs    AuditLog[]
+  stockMovements StockMovement[] @relation("StockMovementActor")
+  idempotencyRecords IdempotencyRecord[]
+  invitationsSent Invitation[] @relation("InvitationInviter")
+  invitationsAccepted Invitation[] @relation("InvitationAcceptor")
+  accountingPeriodsClosed AccountingPeriod[] @relation("PeriodClosedBy")
+
+  @@index([createdAt])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique @db.Char(64)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+model Organization {
+  id        String               @id @default(cuid())
+  name      String               @db.VarChar(160)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  members   OrganizationMember[]
+  roles     Role[]
+  branches  Branch[]
+  auditLogs AuditLog[]
+  productCategories ProductCategory[]
+  products Product[]
+  inventories Inventory[]
+  stockMovements StockMovement[]
+  customers Customer[]
+  suppliers Supplier[]
+  sales Sale[]
+  purchaseInvoices PurchaseInvoice[]
+  payments Payment[]
+  idempotencyRecords IdempotencyRecord[]
+  branchAccess BranchAccess[]
+  accounts Account[]
+  journalEntries JournalEntry[]
+  invitations Invitation[]
+  employeeProfiles EmployeeProfile[]
+  integrationEvents IntegrationEvent[]
+  settings OrganizationSettings?
+  webhookEndpoints WebhookEndpoint[]
+  outboundEvents OutboundEvent[]
+  accountingPeriods AccountingPeriod[]
+
+
+  @@index([createdAt])
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId         String
+  role           Role         @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  tenantRole     Role         @relation("OrganizationMemberRoleTenant", fields: [organizationId, roleId], references: [organizationId, id], onDelete: Restrict)
+  createdAt      DateTime     @default(now())
+  branchAccess   BranchAccess[]
+  tenantBranchAccess BranchAccess[] @relation("BranchAccessMemberTenant")
+  employeeProfile EmployeeProfile?
+  tenantEmployeeProfiles EmployeeProfile[] @relation("EmployeeProfileMemberTenant")
+
+  @@unique([organizationId, userId])
+  @@unique([organizationId, id])
+  @@index([userId])
+  @@index([organizationId, roleId])
+}
+
+model Role {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String           @db.VarChar(80)
+  key            String           @db.VarChar(80)
+  createdAt      DateTime         @default(now())
+  members        OrganizationMember[]
+  tenantMembers  OrganizationMember[] @relation("OrganizationMemberRoleTenant")
+  invitations    Invitation[]
+  tenantInvitations Invitation[] @relation("InvitationRoleTenant")
+  permissions    RolePermission[]
+
+  @@unique([organizationId, key])
+  @@unique([organizationId, id])
+  @@index([organizationId])
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique @db.VarChar(100)
+  description String           @db.VarChar(200)
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model Branch {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String       @db.VarChar(120)
+  createdAt      DateTime     @default(now())
+  branchAccess   BranchAccess[]
+  tenantAccess   BranchAccess[] @relation("BranchAccessBranchTenant")
+
+  @@unique([organizationId, name])
+  @@unique([organizationId, id])
+  @@index([organizationId])
+}
+
+model ProductCategory {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String       @db.VarChar(120)
+  createdAt      DateTime     @default(now())
+  products       Product[]
+  tenantProducts Product[] @relation("ProductCategoryTenant")
+
+  @@unique([organizationId, name])
+  @@unique([organizationId, id])
+  @@index([organizationId])
+}
+
+model Product {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  categoryId     String?
+  category       ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tenantCategory ProductCategory? @relation("ProductCategoryTenant", fields: [organizationId, categoryId], references: [organizationId, id], onDelete: NoAction)
+  name           String           @db.VarChar(160)
+  sku            String?          @db.VarChar(80)
+  barcode        String?          @db.VarChar(80)
+  unitPrice      Decimal          @db.Decimal(14, 2)
+  costPrice      Decimal          @db.Decimal(14, 2)
+  lowStockAt     Int              @default(5)
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  inventory      Inventory?
+  tenantInventory Inventory? @relation("InventoryProductTenant")
+  stockMovements StockMovement[]
+  tenantStockMovements StockMovement[] @relation("StockMovementProductTenant")
+  saleItems      SaleItem[]
+  tenantSaleItems SaleItem[] @relation("SaleItemProductTenant")
+  purchaseItems  PurchaseInvoiceItem[]
+  tenantPurchaseItems PurchaseInvoiceItem[] @relation("PurchaseInvoiceItemProductTenant")
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, sku])
+  @@unique([organizationId, barcode])
+  @@index([organizationId, name])
+  @@index([organizationId, categoryId])
+}
+
+model Inventory {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  productId      String       @unique
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tenantProduct  Product      @relation("InventoryProductTenant", fields: [organizationId, productId], references: [organizationId, id], onDelete: Cascade)
+  quantity       Int          @default(0)
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, productId])
+  @@index([organizationId, quantity])
+}
+
+model StockMovement {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  tenantProduct  Product      @relation("StockMovementProductTenant", fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  actorId        String?
+  actor          User?        @relation("StockMovementActor", fields: [actorId], references: [id], onDelete: SetNull)
+  quantityDelta  Int
+  reason         String       @db.VarChar(40)
+  referenceId    String?      @db.VarChar(100)
+  note           String?      @db.VarChar(500)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, productId, createdAt])
+}
+
+model Customer {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String       @db.VarChar(160)
+  email          String?      @db.VarChar(320)
+  phone          String?      @db.VarChar(40)
+  notes          String?      @db.VarChar(1000)
+  marketingConsent Boolean    @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  sales          Sale[]
+  tenantSales    Sale[] @relation("SaleCustomerTenant")
+
+  @@unique([organizationId, id])
+  @@index([organizationId, name])
+  @@index([organizationId, email])
+}
+
+model Supplier {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String       @db.VarChar(160)
+  email          String?      @db.VarChar(320)
+  phone          String?      @db.VarChar(40)
+  notes          String?      @db.VarChar(1000)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  invoices       PurchaseInvoice[]
+  tenantInvoices PurchaseInvoice[] @relation("PurchaseInvoiceSupplierTenant")
+
+  @@unique([organizationId, id])
+  @@index([organizationId, name])
+  @@index([organizationId, email])
+}
+
+model Sale {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customerId     String?
+  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  tenantCustomer Customer?    @relation("SaleCustomerTenant", fields: [organizationId, customerId], references: [organizationId, id], onDelete: NoAction)
+  invoiceNumber  String       @db.VarChar(40)
+  status         String       @default("issued") @db.VarChar(20) // issued, paid, voided
+  voidedAt       DateTime?
+  voidedById     String?
+  subtotal       Decimal      @db.Decimal(14, 2)
+  discount       Decimal      @default(0) @db.Decimal(14, 2)
+  tax            Decimal      @default(0) @db.Decimal(14, 2)
+  total          Decimal      @db.Decimal(14, 2)
+  issuedAt       DateTime     @default(now())
+  dueAt          DateTime?
+  items          SaleItem[]
+  tenantItems    SaleItem[] @relation("SaleItemSaleTenant")
+  payments       Payment[]
+  tenantPayments Payment[] @relation("PaymentSaleTenant")
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, invoiceNumber])
+  @@index([organizationId, issuedAt])
+  @@index([organizationId, customerId])
+}
+
+model SaleItem {
+  id             String   @id @default(cuid())
+  organizationId String
+  saleId         String
+  sale           Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  tenantSale     Sale     @relation("SaleItemSaleTenant", fields: [organizationId, saleId], references: [organizationId, id], onDelete: Cascade)
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  tenantProduct  Product  @relation("SaleItemProductTenant", fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  description    String   @db.VarChar(160)
+  quantity       Int
+  unitPrice      Decimal  @db.Decimal(14, 2)
+  lineTotal      Decimal  @db.Decimal(14, 2)
+
+  @@index([organizationId, saleId])
+  @@index([organizationId, productId])
+}
+
+model PurchaseInvoice {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplierId     String
+  supplier       Supplier     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  tenantSupplier Supplier     @relation("PurchaseInvoiceSupplierTenant", fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  invoiceNumber  String       @db.VarChar(80)
+  status         String       @default("received") @db.VarChar(20) // received, paid, voided
+  voidedAt       DateTime?
+  voidedById     String?
+  subtotal       Decimal      @db.Decimal(14, 2)
+  tax            Decimal      @default(0) @db.Decimal(14, 2)
+  total          Decimal      @db.Decimal(14, 2)
+  receivedAt     DateTime     @default(now())
+  dueAt          DateTime?
+  items          PurchaseInvoiceItem[]
+  tenantItems    PurchaseInvoiceItem[] @relation("PurchaseInvoiceItemInvoiceTenant")
+  payments       Payment[]
+  tenantPayments Payment[] @relation("PaymentPurchaseInvoiceTenant")
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, invoiceNumber])
+  @@index([organizationId, receivedAt])
+  @@index([organizationId, supplierId])
+}
+
+model PurchaseInvoiceItem {
+  id                String          @id @default(cuid())
+  organizationId    String
+  purchaseInvoiceId String
+  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  tenantPurchaseInvoice PurchaseInvoice @relation("PurchaseInvoiceItemInvoiceTenant", fields: [organizationId, purchaseInvoiceId], references: [organizationId, id], onDelete: Cascade)
+  productId         String
+  product           Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  tenantProduct     Product         @relation("PurchaseInvoiceItemProductTenant", fields: [organizationId, productId], references: [organizationId, id], onDelete: Restrict)
+  description       String          @db.VarChar(160)
+  quantity          Int
+  unitCost          Decimal         @db.Decimal(14, 2)
+  lineTotal         Decimal         @db.Decimal(14, 2)
+
+  @@index([organizationId, purchaseInvoiceId])
+  @@index([organizationId, productId])
+}
+
+model Payment {
+  id                String          @id @default(cuid())
+  organizationId    String
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  saleId            String?
+  sale              Sale?           @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  tenantSale        Sale?            @relation("PaymentSaleTenant", fields: [organizationId, saleId], references: [organizationId, id], onDelete: Cascade)
+  purchaseInvoiceId String?
+  purchaseInvoice   PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  tenantPurchaseInvoice PurchaseInvoice? @relation("PaymentPurchaseInvoiceTenant", fields: [organizationId, purchaseInvoiceId], references: [organizationId, id], onDelete: Cascade)
+  amount            Decimal         @db.Decimal(14, 2)
+  method            String          @db.VarChar(30)
+  reference         String?         @db.VarChar(100)
+  accountingReference String?       @db.VarChar(100)
+  paidAt            DateTime        @default(now())
+
+  @@index([organizationId, paidAt])
+  @@index([organizationId, saleId])
+  @@index([organizationId, purchaseInvoiceId])
+}
+
+model BranchAccess {
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberId String
+  member   OrganizationMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tenantMember OrganizationMember @relation("BranchAccessMemberTenant", fields: [organizationId, memberId], references: [organizationId, id], onDelete: Cascade)
+  branchId String
+  branch   Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tenantBranch Branch @relation("BranchAccessBranchTenant", fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+
+  @@id([memberId, branchId])
+  @@index([branchId])
+}
+
+model AuditLog {
+  id             String        @id @default(cuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorId        String?
+  actor          User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action         String        @db.VarChar(100)
+  entityType     String        @db.VarChar(100)
+  entityId       String?       @db.VarChar(100)
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model IdempotencyRecord {
+  id             String       @id
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorId        String
+  actor          User         @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  operation      String       @db.VarChar(100)
+  keyHash        String       @db.Char(64)
+  requestHash    String       @db.Char(64)
+  responseStatus Int?
+  responseBody   Json?
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, actorId, operation, keyHash], map: "IdempotencyRecord_scope_key_key")
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4: Accounting (Chart of Accounts, Journal Entries, Account Balances)
+// ---------------------------------------------------------------------------
+
+model Account {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  code           String   @db.VarChar(20)
+  name           String   @db.VarChar(120)
+  type           String   @db.VarChar(20) // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
+  normalBalance  String   @db.VarChar(10) // DEBIT, CREDIT
+  description    String?  @db.VarChar(255)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lines          JournalEntryLine[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, type])
+  @@index([isActive])
+}
+
+model JournalEntry {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reference      String?  @db.VarChar(100)
+  description    String   @db.VarChar(255)
+  status         String   @default("DRAFT") @db.VarChar(20) // DRAFT, POSTED
+  postedAt       DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lines          JournalEntryLine[]
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+}
+
+model JournalEntryLine {
+  id             String   @id @default(cuid())
+  journalEntryId String
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  accountId      String
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  debit          Decimal  @default(0) @db.Decimal(14, 2)
+  credit         Decimal  @default(0) @db.Decimal(14, 2)
+  description    String?  @db.VarChar(255)
+  orderIndex     Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  @@unique([journalEntryId, accountId, orderIndex])
+  @@index([journalEntryId])
+  @@index([accountId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: Organization invitations (member lifecycle)
+// ---------------------------------------------------------------------------
+
+model Invitation {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String   @db.VarChar(320)
+  roleId         String
+  role           Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  tenantRole     Role     @relation("InvitationRoleTenant", fields: [organizationId, roleId], references: [organizationId, id], onDelete: Restrict)
+  tokenHash      String   @unique @db.Char(64)
+  status         String   @default("PENDING") @db.VarChar(20) // PENDING, ACCEPTED, REVOKED, EXPIRED
+  invitedById    String?
+  invitedBy      User?    @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  acceptedById   String?
+  acceptedBy     User?    @relation("InvitationAcceptor", fields: [acceptedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, id])
+  @@index([organizationId, email])
+  @@index([organizationId, status])
+  @@index([expiresAt])
+}
+
+// Interview/employment record for organization members (employee lifecycle).
+model EmployeeProfile {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberId       String   @unique
+  member         OrganizationMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tenantMember   OrganizationMember @relation("EmployeeProfileMemberTenant", fields: [organizationId, memberId], references: [organizationId, id], onDelete: Cascade)
+  employeeNumber String?  @db.VarChar(40)
+  jobTitle       String?  @db.VarChar(120)
+  department     String?  @db.VarChar(120)
+  hiredAt        DateTime?
+  employmentType String?  @db.VarChar(30) // full_time, part_time, contract, other
+  status         String   @default("ACTIVE") @db.VarChar(20) // ACTIVE, SUSPENDED, ENDED
+  endedAt        DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, id])
+  @@index([organizationId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 8: Integrations (inbound provider events) and localization settings
+// ---------------------------------------------------------------------------
+
+/**
+ * Durable inbox for inbound provider events (webhooks).
+ *
+ * Provider events are stored before processing so that retries are safe: the
+ * `(provider, eventId)` unique key is the replay defense, and a signature is
+ * verified before a row is ever written.
+ */
+model IntegrationEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  provider       String   @db.VarChar(60)
+  eventId        String   @db.VarChar(120)
+  eventType      String   @db.VarChar(120)
+  payload        Json
+  signatureHash  String   @db.Char(64)
+  status         String   @default("RECEIVED") @db.VarChar(20) // RECEIVED, PROCESSED, IGNORED, FAILED
+  attempts       Int      @default(0)
+  lastError      String?  @db.VarChar(500)
+  receivedAt     DateTime @default(now())
+  processedAt    DateTime?
+
+  @@unique([organizationId, provider, eventId])
+  @@index([organizationId, receivedAt])
+  @@index([organizationId, status])
+}
+
+/** Organization-scoped locale and currency presentation settings. */
+model OrganizationSettings {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  locale         String   @default("en-US") @db.VarChar(20)
+  timeZone       String   @default("UTC") @db.VarChar(60)
+  currencyCode   String   @default("USD") @db.Char(3)
+  currencyDisplay String  @default("symbol") @db.VarChar(20)
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+/**
+ * Per-organization, per-provider webhook secret used for HMAC verification.
+ * Verification needs the original secret, so it is stored as generated (never
+ * derived from a user-chosen password) and is returned only once at creation.
+ * Looking the secret up by organization keeps multi-tenant webhooks isolated.
+ */
+model WebhookEndpoint {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  provider       String   @db.VarChar(60)
+  secret         String   @db.VarChar(128)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  rotatedAt      DateTime?
+
+  @@unique([organizationId, provider])
+  @@index([provider])
+}
+
+/**
+ * Transactional outbox for outbound integration deliveries (Phase 8).
+ *
+ * Events are written in the same transaction as the business change, then a
+ * worker delivers them. A durable `(organizationId, provider, idempotencyKey)`
+ * unique key makes retries safe, and `attempts`/`nextAttemptAt` drive
+ * exponential backoff without losing the message.
+ */
+model OutboundEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  provider       String   @db.VarChar(60)
+  eventType      String   @db.VarChar(120)
+  idempotencyKey String   @db.VarChar(120)
+  payload        Json
+  status         String   @default("PENDING") @db.VarChar(20) // PENDING, DELIVERED, FAILED, DEAD
+  attempts       Int      @default(0)
+  nextAttemptAt  DateTime @default(now())
+  lastError      String?  @db.VarChar(500)
+  deliveredAt    DateTime?
+  createdAt      DateTime @default(now())
+
+  @@unique([organizationId, provider, idempotencyKey])
+  @@index([status, nextAttemptAt])
+  @@index([organizationId, createdAt])
+}
+
+/**
+ * Accounting periods (Phase 4, policy: accrual).
+ *
+ * A CLOSED period rejects new postings dated inside it. Closing is additive: no
+ * entry is deleted or edited, and reopening is recorded as an audited action.
+ */
+model AccountingPeriod {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  startDate      DateTime @db.Date
+  endDate        DateTime @db.Date
+  status         String   @default("OPEN") @db.VarChar(20) // OPEN, CLOSED
+  closedAt       DateTime?
+  closedById     String?
+  closedBy       User?    @relation("PeriodClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, startDate, endDate])
+  @@index([organizationId, status])
+}
